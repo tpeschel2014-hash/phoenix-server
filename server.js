@@ -29,11 +29,18 @@ app.use(cors({
 
 }));
 
-app.use(express.json());
+// WICHTIG FÜR BILDER
+app.use(express.json({
+
+  limit: "50mb"
+
+}));
 
 app.use(express.urlencoded({
 
-  extended: true
+  extended: true,
+
+  limit: "50mb"
 
 }));
 
@@ -72,7 +79,7 @@ let onlineUsers = 0;
 // ======================
 mongoose.connect(
 
-  "mongodb+srv://tpeschel2014_db_user:Odin2506@cluster0.sqqvw9n.mongodb.net/phoenixchat?retryWrites=true&w=majority&appName=Cluster0"
+  process.env.MONGO_URI
 
 );
 
@@ -96,10 +103,6 @@ mongoose.connection.on(
 
   (err) => {
 
-    console.log(
-      "MONGODB ERROR:"
-    );
-
     console.log(err);
 
   }
@@ -116,19 +119,11 @@ const userSchema =
 
       type: String,
 
-      unique: true,
-
-      required: true
+      unique: true
 
     },
 
-    password: {
-
-      type: String,
-
-      required: true
-
-    },
+    password: String,
 
     createdAt: Date
 
@@ -141,6 +136,8 @@ const messageSchema =
   new mongoose.Schema({
 
     text: String,
+
+    image: String,
 
     username: String,
 
@@ -199,39 +196,11 @@ app.post(
 
     try {
 
-      console.log(
-        "REGISTER REQUEST:"
-      );
-
-      console.log(
-        req.body
-      );
-
       const {
         username,
         password
       } = req.body;
 
-      // ======================
-      // VALIDATION
-      // ======================
-      if (
-        !username ||
-        !password
-      ) {
-
-        return res.status(400).json({
-
-          error:
-            "MISSING DATA"
-
-        });
-
-      }
-
-      // ======================
-      // USER EXISTS
-      // ======================
       const existingUser =
         await User.findOne({
 
@@ -250,9 +219,6 @@ app.post(
 
       }
 
-      // ======================
-      // HASH PASSWORD
-      // ======================
       const hashedPassword =
         await bcrypt.hash(
 
@@ -262,9 +228,6 @@ app.post(
 
         );
 
-      // ======================
-      // CREATE USER
-      // ======================
       const user =
         new User({
 
@@ -280,10 +243,6 @@ app.post(
 
       await user.save();
 
-      console.log(
-        "USER CREATED"
-      );
-
       res.json({
 
         success: true
@@ -292,16 +251,12 @@ app.post(
 
     } catch (err) {
 
-      console.log(
-        "REGISTER ERROR:"
-      );
-
       console.log(err);
 
       res.status(500).json({
 
         error:
-          "REGISTER SERVER ERROR"
+          "REGISTER ERROR"
 
       });
 
@@ -322,22 +277,11 @@ app.post(
 
     try {
 
-      console.log(
-        "LOGIN REQUEST:"
-      );
-
-      console.log(
-        req.body
-      );
-
       const {
         username,
         password
       } = req.body;
 
-      // ======================
-      // FIND USER
-      // ======================
       const user =
         await User.findOne({
 
@@ -356,9 +300,6 @@ app.post(
 
       }
 
-      // ======================
-      // CHECK PASSWORD
-      // ======================
       const validPassword =
         await bcrypt.compare(
 
@@ -379,10 +320,6 @@ app.post(
 
       }
 
-      console.log(
-        "LOGIN SUCCESS"
-      );
-
       res.json({
 
         success: true,
@@ -394,16 +331,12 @@ app.post(
 
     } catch (err) {
 
-      console.log(
-        "LOGIN ERROR:"
-      );
-
       console.log(err);
 
       res.status(500).json({
 
         error:
-          "LOGIN SERVER ERROR"
+          "LOGIN ERROR"
 
       });
 
@@ -436,18 +369,14 @@ app.get(
 
     } catch (err) {
 
-      console.log(
-        "MESSAGES ERROR:"
-      );
-
       console.log(err);
 
       res.status(500).json({
 
         error:
-          "MESSAGES SERVER ERROR"
+          "MESSAGES ERROR"
 
-        });
+      });
 
     }
 
@@ -456,7 +385,7 @@ app.get(
 );
 
 // ======================
-// SOCKET CONNECTION
+// SOCKET
 // ======================
 io.on(
 
@@ -468,21 +397,15 @@ io.on(
       "USER CONNECTED"
     );
 
-    // ======================
-    // ONLINE USERS
-    // ======================
     onlineUsers++;
 
     io.emit(
-
       "onlineUsers",
-
       onlineUsers
-
     );
 
     // ======================
-    // SEND MESSAGE
+    // MESSAGE
     // ======================
     socket.on(
 
@@ -498,6 +421,9 @@ io.on(
               text:
                 data.text,
 
+              image:
+                data.image,
+
               username:
                 data.username,
 
@@ -512,18 +438,11 @@ io.on(
           await message.save();
 
           io.emit(
-
             "msg",
-
             message
-
           );
 
         } catch (err) {
-
-          console.log(
-            "MESSAGE ERROR:"
-          );
 
           console.log(err);
 
@@ -580,10 +499,6 @@ io.on(
 
       () => {
 
-        console.log(
-          "USER DISCONNECTED"
-        );
-
         onlineUsers--;
 
         if (
@@ -595,11 +510,8 @@ io.on(
         }
 
         io.emit(
-
           "onlineUsers",
-
           onlineUsers
-
         );
 
       }
@@ -617,7 +529,7 @@ const PORT =
   process.env.PORT || 3000;
 
 // ======================
-// START SERVER
+// START
 // ======================
 server.listen(
 
