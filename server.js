@@ -208,6 +208,26 @@ const messageSchema =
   });
 
 // ======================
+// PRIVATE MESSAGE SCHEMA
+// ======================
+const privateMessageSchema =
+  new mongoose.Schema({
+
+    from: String,
+
+    to: String,
+
+    text: String,
+
+    image: String,
+
+    avatar: String,
+
+    createdAt: Date
+
+  });
+
+// ======================
 // MODELS
 // ======================
 const User =
@@ -225,6 +245,15 @@ const Message =
     "Message",
 
     messageSchema
+
+  );
+
+const PrivateMessage =
+  mongoose.model(
+
+    "PrivateMessage",
+
+    privateMessageSchema
 
   );
 
@@ -446,7 +475,50 @@ app.post(
 );
 
 // ======================
-// GET MESSAGES
+// GET USERS
+// ======================
+app.get(
+
+  "/users",
+
+  async (req, res) => {
+
+    try {
+
+      const users =
+        await User.find(
+
+          {},
+
+          {
+
+            password: 0
+
+          }
+
+        );
+
+      res.json(users);
+
+    } catch (err) {
+
+      console.log(err);
+
+      res.status(500).json({
+
+        error:
+          "USERS ERROR"
+
+      });
+
+    }
+
+  }
+
+);
+
+// ======================
+// GET GLOBAL MESSAGES
 // ======================
 app.get(
 
@@ -484,6 +556,72 @@ app.get(
 );
 
 // ======================
+// GET PRIVATE MESSAGES
+// ======================
+app.get(
+
+  "/private-messages/:user1/:user2",
+
+  async (req, res) => {
+
+    try {
+
+      const {
+
+        user1,
+        user2
+
+      } = req.params;
+
+      const messages =
+        await PrivateMessage.find({
+
+          $or: [
+
+            {
+
+              from: user1,
+
+              to: user2
+
+            },
+
+            {
+
+              from: user2,
+
+              to: user1
+
+            }
+
+          ]
+
+        }).sort({
+
+          createdAt: 1
+
+        });
+
+      res.json(messages);
+
+    } catch (err) {
+
+      console.log(err);
+
+      res.status(500).json({
+
+        error:
+          "PRIVATE MESSAGES ERROR"
+
+      });
+
+    }
+
+  }
+
+);
+
+// ======================
 // SOCKET
 // ======================
 io.on(
@@ -504,7 +642,7 @@ io.on(
     );
 
     // ======================
-    // MESSAGE
+    // GLOBAL MESSAGE
     // ======================
     socket.on(
 
@@ -538,6 +676,57 @@ io.on(
 
           io.emit(
             "msg",
+            message
+          );
+
+        } catch (err) {
+
+          console.log(err);
+
+        }
+
+      }
+
+    );
+
+    // ======================
+    // PRIVATE MESSAGE
+    // ======================
+    socket.on(
+
+      "privateMsg",
+
+      async (data) => {
+
+        try {
+
+          const message =
+            new PrivateMessage({
+
+              from:
+                data.from,
+
+              to:
+                data.to,
+
+              text:
+                data.text,
+
+              image:
+                data.image,
+
+              avatar:
+                data.avatar,
+
+              createdAt:
+                new Date()
+
+            });
+
+          await message.save();
+
+          io.emit(
+            "privateMsg",
             message
           );
 
