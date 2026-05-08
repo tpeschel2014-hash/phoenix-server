@@ -17,6 +17,67 @@ const mongoose =
 const bcrypt =
   require("bcryptjs");
 
+const multer =
+  require("multer");
+
+const cloudinary =
+  require("cloudinary").v2;
+
+const {
+  CloudinaryStorage
+} = require(
+  "multer-storage-cloudinary"
+);
+
+// ======================
+// CLOUDINARY
+// ======================
+cloudinary.config({
+
+  cloud_name:
+    process.env.CLOUDINARY_CLOUD_NAME,
+
+  api_key:
+    process.env.CLOUDINARY_API_KEY,
+
+  api_secret:
+    process.env.CLOUDINARY_API_SECRET
+
+});
+
+// ======================
+// STORAGE
+// ======================
+const storage =
+  new CloudinaryStorage({
+
+    cloudinary,
+
+    params: async () => ({
+
+      folder:
+        "phoenix-chat",
+
+      allowed_formats: [
+
+        "jpg",
+        "png",
+        "jpeg",
+        "webp"
+
+      ]
+
+    })
+
+  });
+
+const upload =
+  multer({
+
+    storage
+
+  });
+
 // ======================
 // APP
 // ======================
@@ -29,7 +90,6 @@ app.use(cors({
 
 }));
 
-// WICHTIG FÜR BILDER
 app.use(express.json({
 
   limit: "50mb"
@@ -180,6 +240,45 @@ app.get(
     res.send(
       "PHOENIX SERVER ONLINE"
     );
+
+  }
+
+);
+
+// ======================
+// IMAGE UPLOAD
+// ======================
+app.post(
+
+  "/upload",
+
+  upload.single("image"),
+
+  async (req, res) => {
+
+    try {
+
+      res.json({
+
+        success: true,
+
+        imageUrl:
+          req.file.path
+
+      });
+
+    } catch (err) {
+
+      console.log(err);
+
+      res.status(500).json({
+
+        error:
+          "UPLOAD ERROR"
+
+      });
+
+    }
 
   }
 
