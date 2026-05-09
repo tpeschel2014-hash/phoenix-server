@@ -187,9 +187,6 @@ const privateMessageSchema =
 
     image: String,
 
-    // ======================
-    // VOICE MESSAGE
-    // ======================
     voice: {
 
       type: String,
@@ -198,14 +195,63 @@ const privateMessageSchema =
 
     },
 
-    // ======================
-    // READ RECEIPTS
-    // ======================
     read: {
 
       type: Boolean,
 
       default: false
+
+    },
+
+    createdAt: Date
+
+  });
+
+// ======================
+// GROUP SCHEMA
+// ======================
+const groupSchema =
+  new mongoose.Schema({
+
+    name: String,
+
+    image: {
+
+      type: String,
+
+      default: ""
+
+    },
+
+    members: [
+
+      String
+
+    ],
+
+    createdAt: Date
+
+  });
+
+// ======================
+// GROUP MESSAGE SCHEMA
+// ======================
+const groupMessageSchema =
+  new mongoose.Schema({
+
+    groupId: String,
+
+    from: String,
+
+    text: String,
+
+    image: String,
+
+    voice: {
+
+      type: String,
+
+      default: ""
 
     },
 
@@ -231,6 +277,24 @@ const PrivateMessage =
     "PrivateMessage",
 
     privateMessageSchema
+
+  );
+
+const Group =
+  mongoose.model(
+
+    "Group",
+
+    groupSchema
+
+  );
+
+const GroupMessage =
+  mongoose.model(
+
+    "GroupMessage",
+
+    groupMessageSchema
 
   );
 
@@ -418,7 +482,7 @@ app.post(
 );
 
 // ======================
-// UPDATE PROFILE IMAGE
+// UPDATE AVATAR
 // ======================
 app.post(
 
@@ -485,6 +549,148 @@ app.post(
 );
 
 // ======================
+// CREATE GROUP
+// ======================
+app.post(
+
+  "/create-group",
+
+  async (req, res) => {
+
+    try {
+
+      const {
+        name,
+        members
+      } = req.body;
+
+      const group =
+        new Group({
+
+          name,
+
+          members,
+
+          createdAt:
+            new Date()
+
+        });
+
+      await group.save();
+
+      res.json({
+
+        success: true,
+
+        group
+
+      });
+
+    } catch (err) {
+
+      console.log(err);
+
+      res.status(500).json({
+
+        error:
+          "GROUP CREATE ERROR"
+
+      });
+
+    }
+
+  }
+
+);
+
+// ======================
+// GET GROUPS
+// ======================
+app.get(
+
+  "/groups/:username",
+
+  async (req, res) => {
+
+    try {
+
+      const {
+        username
+      } = req.params;
+
+      const groups =
+        await Group.find({
+
+          members:
+            username
+
+        });
+
+      res.json(groups);
+
+    } catch (err) {
+
+      console.log(err);
+
+      res.status(500).json({
+
+        error:
+          "GROUPS ERROR"
+
+      });
+
+    }
+
+  }
+
+);
+
+// ======================
+// GET GROUP MESSAGES
+// ======================
+app.get(
+
+  "/group-messages/:groupId",
+
+  async (req, res) => {
+
+    try {
+
+      const {
+        groupId
+      } = req.params;
+
+      const messages =
+        await GroupMessage.find({
+
+          groupId
+
+        }).sort({
+
+          createdAt: 1
+
+        });
+
+      res.json(messages);
+
+    } catch (err) {
+
+      console.log(err);
+
+      res.status(500).json({
+
+        error:
+          "GROUP MESSAGE ERROR"
+
+      });
+
+    }
+
+  }
+
+);
+
+// ======================
 // GET USERS
 // ======================
 app.get(
@@ -518,118 +724,6 @@ app.get(
 
         error:
           "USERS ERROR"
-
-      });
-
-    }
-
-  }
-
-);
-
-// ======================
-// GET CONVERSATIONS
-// ======================
-app.get(
-
-  "/conversations/:username",
-
-  async (req, res) => {
-
-    try {
-
-      const {
-        username
-      } = req.params;
-
-      const messages =
-        await PrivateMessage.find({
-
-          $or: [
-
-            {
-              from: username
-            },
-
-            {
-              to: username
-            }
-
-          ]
-
-        }).sort({
-
-          createdAt: -1
-
-        });
-
-      const conversations =
-        {};
-
-      messages.forEach(
-
-        (msg) => {
-
-          const otherUser =
-
-            msg.from === username
-              ? msg.to
-              : msg.from;
-
-          if (
-
-            !conversations[
-              otherUser
-            ]
-
-          ) {
-
-            conversations[
-              otherUser
-            ] = {
-
-              username:
-                otherUser,
-
-              text:
-                msg.text,
-
-              image:
-                msg.image,
-
-              voice:
-                msg.voice,
-
-              read:
-                msg.read,
-
-              createdAt:
-                msg.createdAt
-
-            };
-
-          }
-
-        }
-
-      );
-
-      res.json(
-
-        Object.values(
-          conversations
-        )
-
-      );
-
-    } catch (err) {
-
-      console.log(err);
-
-      res.status(500).json({
-
-        error:
-          "CONVERSATIONS ERROR"
 
       });
 
@@ -839,6 +933,60 @@ io.on(
           io.emit(
 
             "privateMsg",
+
+            message
+
+          );
+
+        } catch (err) {
+
+          console.log(err);
+
+        }
+
+      }
+
+    );
+
+    // ======================
+    // GROUP MESSAGE
+    // ======================
+    socket.on(
+
+      "groupMsg",
+
+      async (data) => {
+
+        try {
+
+          const message =
+            new GroupMessage({
+
+              groupId:
+                data.groupId,
+
+              from:
+                data.from,
+
+              text:
+                data.text,
+
+              image:
+                data.image,
+
+              voice:
+                data.voice || "",
+
+              createdAt:
+                new Date()
+
+            });
+
+          await message.save();
+
+          io.emit(
+
+            "groupMsg",
 
             message
 
