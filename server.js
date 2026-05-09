@@ -92,7 +92,10 @@ const storage =
         "jpg",
         "jpeg",
         "png",
-        "webp"
+        "webp",
+        "mp3",
+        "m4a",
+        "wav"
 
       ]
 
@@ -158,9 +161,6 @@ const userSchema =
 
     password: String,
 
-    // ======================
-    // PROFILE IMAGE
-    // ======================
     avatar: {
 
       type: String,
@@ -187,6 +187,20 @@ const privateMessageSchema =
 
     image: String,
 
+    // ======================
+    // VOICE MESSAGE
+    // ======================
+    voice: {
+
+      type: String,
+
+      default: ""
+
+    },
+
+    // ======================
+    // READ RECEIPTS
+    // ======================
     read: {
 
       type: Boolean,
@@ -583,6 +597,9 @@ app.get(
               image:
                 msg.image,
 
+              voice:
+                msg.voice,
+
               read:
                 msg.read,
 
@@ -687,7 +704,7 @@ app.get(
 );
 
 // ======================
-// IMAGE UPLOAD
+// FILE UPLOAD
 // ======================
 app.post(
 
@@ -703,7 +720,7 @@ app.post(
 
         success: true,
 
-        imageUrl:
+        fileUrl:
           req.file.path
 
       });
@@ -806,6 +823,9 @@ io.on(
 
               image:
                 data.image,
+
+              voice:
+                data.voice || "",
 
               read: false,
 
