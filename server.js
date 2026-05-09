@@ -158,6 +158,17 @@ const userSchema =
 
     password: String,
 
+    // ======================
+    // PROFILE IMAGE
+    // ======================
+    avatar: {
+
+      type: String,
+
+      default: ""
+
+    },
+
     createdAt: Date
 
   });
@@ -277,6 +288,8 @@ app.post(
           password:
             hashedPassword,
 
+          avatar: "",
+
           createdAt:
             new Date()
 
@@ -366,7 +379,10 @@ app.post(
         success: true,
 
         username:
-          user.username
+          user.username,
+
+        avatar:
+          user.avatar
 
       });
 
@@ -378,6 +394,73 @@ app.post(
 
         error:
           "LOGIN ERROR"
+
+      });
+
+    }
+
+  }
+
+);
+
+// ======================
+// UPDATE PROFILE IMAGE
+// ======================
+app.post(
+
+  "/update-avatar/:username",
+
+  upload.single("image"),
+
+  async (req, res) => {
+
+    try {
+
+      const {
+        username
+      } = req.params;
+
+      const user =
+        await User.findOneAndUpdate(
+
+          {
+
+            username
+
+          },
+
+          {
+
+            avatar:
+              req.file.path
+
+          },
+
+          {
+
+            new: true
+
+          }
+
+        );
+
+      res.json({
+
+        success: true,
+
+        avatar:
+          user.avatar
+
+      });
+
+    } catch (err) {
+
+      console.log(err);
+
+      res.status(500).json({
+
+        error:
+          "AVATAR UPDATE ERROR"
 
       });
 
