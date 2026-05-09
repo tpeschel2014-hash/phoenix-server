@@ -176,9 +176,6 @@ const privateMessageSchema =
 
     image: String,
 
-    // ======================
-    // READ RECEIPTS
-    // ======================
     read: {
 
       type: Boolean,
@@ -677,6 +674,16 @@ io.on(
           username
         ] = socket.id;
 
+        console.log(
+
+          "ONLINE USERS:",
+
+          Object.keys(
+            onlineUsers
+          )
+
+        );
+
         io.emit(
 
           "onlineUsers",
@@ -872,6 +879,16 @@ io.on(
           }
 
         }
+
+        console.log(
+
+          "ONLINE USERS:",
+
+          Object.keys(
+            onlineUsers
+          )
+
+        );
 
         io.emit(
 
