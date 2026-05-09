@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
+const axios = require("axios");
 
 const {
   CloudinaryStorage
@@ -162,6 +163,17 @@ const userSchema =
     password: String,
 
     avatar: {
+
+      type: String,
+
+      default: ""
+
+    },
+
+    // ======================
+    // PUSH TOKEN
+    // ======================
+    pushToken: {
 
       type: String,
 
@@ -368,6 +380,8 @@ app.post(
 
           avatar: "",
 
+          pushToken: "",
+
           createdAt:
             new Date()
 
@@ -389,6 +403,61 @@ app.post(
 
         error:
           "REGISTER ERROR"
+
+      });
+
+    }
+
+  }
+
+);
+
+// ======================
+// SAVE PUSH TOKEN
+// ======================
+app.post(
+
+  "/save-push-token",
+
+  async (req, res) => {
+
+    try {
+
+      const {
+        username,
+        pushToken
+      } = req.body;
+
+      await User.findOneAndUpdate(
+
+        {
+
+          username
+
+        },
+
+        {
+
+          pushToken
+
+        }
+
+      );
+
+      res.json({
+
+        success: true
+
+      });
+
+    } catch (err) {
+
+      console.log(err);
+
+      res.status(500).json({
+
+        error:
+          "PUSH TOKEN ERROR"
 
       });
 
@@ -837,6 +906,64 @@ app.post(
 );
 
 // ======================
+// SEND PUSH
+// ======================
+async function sendPushNotification(
+
+  expoPushToken,
+  title,
+  body
+
+) {
+
+  try {
+
+    await axios.post(
+
+      "https://exp.host/--/api/v2/push/send",
+
+      {
+
+        to:
+          expoPushToken,
+
+        sound:
+          "default",
+
+        title,
+
+        body
+
+      },
+
+      {
+
+        headers: {
+
+          Accept:
+            "application/json",
+
+          "Accept-encoding":
+            "gzip, deflate",
+
+          "Content-Type":
+            "application/json"
+
+        }
+
+      }
+
+    );
+
+  } catch (err) {
+
+    console.log(err);
+
+  }
+
+}
+
+// ======================
 // ONLINE USERS
 // ======================
 const onlineUsers =
@@ -937,6 +1064,41 @@ io.on(
             message
 
           );
+
+          // ======================
+          // PUSH NOTIFICATION
+          // ======================
+          const receiver =
+            await User.findOne({
+
+              username:
+                data.to
+
+            });
+
+          if (
+
+            receiver
+
+            &&
+
+            receiver.pushToken
+
+          ) {
+
+            await sendPushNotification(
+
+              receiver.pushToken,
+
+              data.from,
+
+              data.text
+                ? data.text
+                : "Neue Nachricht"
+
+            );
+
+          }
 
         } catch (err) {
 
