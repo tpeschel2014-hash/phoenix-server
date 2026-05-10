@@ -18,7 +18,7 @@ const {
 const app = express();
 
 // ======================
-// HTTP SERVER
+// SERVER
 // ======================
 const server = http.createServer(app);
 
@@ -76,7 +76,7 @@ cloudinary.config({
 });
 
 // ======================
-// CLOUDINARY STORAGE
+// STORAGE
 // ======================
 const storage =
   new CloudinaryStorage({
@@ -87,6 +87,9 @@ const storage =
 
       folder:
         "phoenix-chat",
+
+      resource_type:
+        "auto",
 
       allowed_formats: [
 
@@ -134,18 +137,6 @@ mongoose.connection.once(
 
 );
 
-mongoose.connection.on(
-
-  "error",
-
-  (err) => {
-
-    console.log(err);
-
-  }
-
-);
-
 // ======================
 // USER SCHEMA
 // ======================
@@ -170,9 +161,6 @@ const userSchema =
 
     },
 
-    // ======================
-    // PUSH TOKEN
-    // ======================
     pushToken: {
 
       type: String,
@@ -215,6 +203,25 @@ const privateMessageSchema =
 
     },
 
+    deleted: {
+
+      type: Boolean,
+
+      default: false
+
+    },
+
+    // ======================
+    // REACTIONS
+    // ======================
+    reactions: {
+
+      type: Object,
+
+      default: {}
+
+    },
+
     createdAt: Date
 
   });
@@ -236,9 +243,7 @@ const groupSchema =
     },
 
     members: [
-
       String
-
     ],
 
     createdAt: Date
@@ -311,6 +316,11 @@ const GroupMessage =
   );
 
 // ======================
+// ONLINE USERS
+// ======================
+let onlineUsers = [];
+
+// ======================
 // ROOT
 // ======================
 app.get(
@@ -378,10 +388,6 @@ app.post(
           password:
             hashedPassword,
 
-          avatar: "",
-
-          pushToken: "",
-
           createdAt:
             new Date()
 
@@ -403,61 +409,6 @@ app.post(
 
         error:
           "REGISTER ERROR"
-
-      });
-
-    }
-
-  }
-
-);
-
-// ======================
-// SAVE PUSH TOKEN
-// ======================
-app.post(
-
-  "/save-push-token",
-
-  async (req, res) => {
-
-    try {
-
-      const {
-        username,
-        pushToken
-      } = req.body;
-
-      await User.findOneAndUpdate(
-
-        {
-
-          username
-
-        },
-
-        {
-
-          pushToken
-
-        }
-
-      );
-
-      res.json({
-
-        success: true
-
-      });
-
-    } catch (err) {
-
-      console.log(err);
-
-      res.status(500).json({
-
-        error:
-          "PUSH TOKEN ERROR"
 
       });
 
@@ -525,11 +476,7 @@ app.post(
 
         success: true,
 
-        username:
-          user.username,
-
-        avatar:
-          user.avatar
+        user
 
       });
 
@@ -551,216 +498,7 @@ app.post(
 );
 
 // ======================
-// UPDATE AVATAR
-// ======================
-app.post(
-
-  "/update-avatar/:username",
-
-  upload.single("image"),
-
-  async (req, res) => {
-
-    try {
-
-      const {
-        username
-      } = req.params;
-
-      const user =
-        await User.findOneAndUpdate(
-
-          {
-
-            username
-
-          },
-
-          {
-
-            avatar:
-              req.file.path
-
-          },
-
-          {
-
-            new: true
-
-          }
-
-        );
-
-      res.json({
-
-        success: true,
-
-        avatar:
-          user.avatar
-
-      });
-
-    } catch (err) {
-
-      console.log(err);
-
-      res.status(500).json({
-
-        error:
-          "AVATAR UPDATE ERROR"
-
-      });
-
-    }
-
-  }
-
-);
-
-// ======================
-// CREATE GROUP
-// ======================
-app.post(
-
-  "/create-group",
-
-  async (req, res) => {
-
-    try {
-
-      const {
-        name,
-        members
-      } = req.body;
-
-      const group =
-        new Group({
-
-          name,
-
-          members,
-
-          createdAt:
-            new Date()
-
-        });
-
-      await group.save();
-
-      res.json({
-
-        success: true,
-
-        group
-
-      });
-
-    } catch (err) {
-
-      console.log(err);
-
-      res.status(500).json({
-
-        error:
-          "GROUP CREATE ERROR"
-
-      });
-
-    }
-
-  }
-
-);
-
-// ======================
-// GET GROUPS
-// ======================
-app.get(
-
-  "/groups/:username",
-
-  async (req, res) => {
-
-    try {
-
-      const {
-        username
-      } = req.params;
-
-      const groups =
-        await Group.find({
-
-          members:
-            username
-
-        });
-
-      res.json(groups);
-
-    } catch (err) {
-
-      console.log(err);
-
-      res.status(500).json({
-
-        error:
-          "GROUPS ERROR"
-
-      });
-
-    }
-
-  }
-
-);
-
-// ======================
-// GET GROUP MESSAGES
-// ======================
-app.get(
-
-  "/group-messages/:groupId",
-
-  async (req, res) => {
-
-    try {
-
-      const {
-        groupId
-      } = req.params;
-
-      const messages =
-        await GroupMessage.find({
-
-          groupId
-
-        }).sort({
-
-          createdAt: 1
-
-        });
-
-      res.json(messages);
-
-    } catch (err) {
-
-      console.log(err);
-
-      res.status(500).json({
-
-        error:
-          "GROUP MESSAGE ERROR"
-
-      });
-
-    }
-
-  }
-
-);
-
-// ======================
-// GET USERS
+// USERS
 // ======================
 app.get(
 
@@ -771,17 +509,7 @@ app.get(
     try {
 
       const users =
-        await User.find(
-
-          {},
-
-          {
-
-            password: 0
-
-          }
-
-        );
+        await User.find();
 
       res.json(users);
 
@@ -789,12 +517,7 @@ app.get(
 
       console.log(err);
 
-      res.status(500).json({
-
-        error:
-          "USERS ERROR"
-
-      });
+      res.status(500).json([]);
 
     }
 
@@ -803,19 +526,19 @@ app.get(
 );
 
 // ======================
-// GET PRIVATE MESSAGES
+// PRIVATE MESSAGES
 // ======================
 app.get(
 
-  "/private-messages/:user1/:user2",
+  "/private-messages/:me/:user",
 
   async (req, res) => {
 
     try {
 
       const {
-        user1,
-        user2
+        me,
+        user
       } = req.params;
 
       const messages =
@@ -825,17 +548,17 @@ app.get(
 
             {
 
-              from: user1,
+              from: me,
 
-              to: user2
+              to: user
 
             },
 
             {
 
-              from: user2,
+              from: user,
 
-              to: user1
+              to: me
 
             }
 
@@ -853,10 +576,56 @@ app.get(
 
       console.log(err);
 
+      res.status(500).json([]);
+
+    }
+
+  }
+
+);
+
+// ======================
+// SAVE PUSH TOKEN
+// ======================
+app.post(
+
+  "/save-push-token",
+
+  async (req, res) => {
+
+    try {
+
+      const {
+        username,
+        pushToken
+      } = req.body;
+
+      await User.findOneAndUpdate(
+
+        {
+          username
+        },
+
+        {
+          pushToken
+        }
+
+      );
+
+      res.json({
+
+        success: true
+
+      });
+
+    } catch (err) {
+
+      console.log(err);
+
       res.status(500).json({
 
         error:
-          "PRIVATE MESSAGE ERROR"
+          "TOKEN ERROR"
 
       });
 
@@ -867,7 +636,7 @@ app.get(
 );
 
 // ======================
-// FILE UPLOAD
+// UPLOAD
 // ======================
 app.post(
 
@@ -880,8 +649,6 @@ app.post(
     try {
 
       res.json({
-
-        success: true,
 
         fileUrl:
           req.file.path
@@ -906,71 +673,7 @@ app.post(
 );
 
 // ======================
-// SEND PUSH
-// ======================
-async function sendPushNotification(
-
-  expoPushToken,
-  title,
-  body
-
-) {
-
-  try {
-
-    await axios.post(
-
-      "https://exp.host/--/api/v2/push/send",
-
-      {
-
-        to:
-          expoPushToken,
-
-        sound:
-          "default",
-
-        title,
-
-        body
-
-      },
-
-      {
-
-        headers: {
-
-          Accept:
-            "application/json",
-
-          "Accept-encoding":
-            "gzip, deflate",
-
-          "Content-Type":
-            "application/json"
-
-        }
-
-      }
-
-    );
-
-  } catch (err) {
-
-    console.log(err);
-
-  }
-
-}
-
-// ======================
-// ONLINE USERS
-// ======================
-const onlineUsers =
-  {};
-
-// ======================
-// SOCKET.IO
+// SOCKET CONNECTION
 // ======================
 io.on(
 
@@ -991,27 +694,23 @@ io.on(
 
       (username) => {
 
-        onlineUsers[
-          username
-        ] = socket.id;
-
-        console.log(
-
-          "ONLINE USERS:",
-
-          Object.keys(
-            onlineUsers
+        if (
+          !onlineUsers.includes(
+            username
           )
+        ) {
 
-        );
+          onlineUsers.push(
+            username
+          );
+
+        }
 
         io.emit(
 
           "onlineUsers",
 
-          Object.keys(
-            onlineUsers
-          )
+          onlineUsers
 
         );
 
@@ -1046,9 +745,9 @@ io.on(
                 data.image,
 
               voice:
-                data.voice || "",
+                data.voice,
 
-              read: false,
+              reactions: {},
 
               createdAt:
                 new Date()
@@ -1066,9 +765,9 @@ io.on(
           );
 
           // ======================
-          // PUSH NOTIFICATION
+          // PUSH
           // ======================
-          const receiver =
+          const targetUser =
             await User.findOne({
 
               username:
@@ -1077,26 +776,54 @@ io.on(
             });
 
           if (
-
-            receiver
-
-            &&
-
-            receiver.pushToken
-
+            targetUser &&
+            targetUser.pushToken
           ) {
 
-            await sendPushNotification(
+            try {
 
-              receiver.pushToken,
+              await axios.post(
 
-              data.from,
+                "https://exp.host/--/api/v2/push/send",
 
-              data.text
-                ? data.text
-                : "Neue Nachricht"
+                {
 
-            );
+                  to:
+                    targetUser.pushToken,
+
+                  sound:
+                    "default",
+
+                  title:
+                    data.from,
+
+                  body:
+                    data.text ||
+                    "Neue Nachricht"
+
+                },
+
+                {
+
+                  headers: {
+
+                    Accept:
+                      "application/json",
+
+                    "Content-Type":
+                      "application/json"
+
+                  }
+
+                }
+
+              );
+
+            } catch (err) {
+
+              console.log(err);
+
+            }
 
           }
 
@@ -1111,46 +838,148 @@ io.on(
     );
 
     // ======================
-    // GROUP MESSAGE
+    // DELETE MESSAGE
     // ======================
     socket.on(
 
-      "groupMsg",
+      "deleteMessage",
+
+      async (messageId) => {
+
+        try {
+
+          await PrivateMessage.findByIdAndUpdate(
+
+            messageId,
+
+            {
+
+              deleted: true,
+
+              text: "",
+
+              image: "",
+
+              voice: ""
+
+            }
+
+          );
+
+          io.emit(
+
+            "messageDeleted",
+
+            messageId
+
+          );
+
+        } catch (err) {
+
+          console.log(err);
+
+        }
+
+      }
+
+    );
+
+    // ======================
+    // REACTION
+    // ======================
+    socket.on(
+
+      "messageReaction",
 
       async (data) => {
 
         try {
 
+          const {
+            messageId,
+            emoji,
+            username
+          } = data;
+
           const message =
-            new GroupMessage({
+            await PrivateMessage.findById(
+              messageId
+            );
 
-              groupId:
-                data.groupId,
+          if (!message) {
+            return;
+          }
 
-              from:
-                data.from,
+          const reactions =
+            message.reactions || {};
 
-              text:
-                data.text,
+          reactions[username] = emoji;
 
-              image:
-                data.image,
-
-              voice:
-                data.voice || "",
-
-              createdAt:
-                new Date()
-
-            });
+          message.reactions =
+            reactions;
 
           await message.save();
 
           io.emit(
 
-            "groupMsg",
+            "messageReaction",
 
-            message
+            {
+
+              messageId,
+
+              reactions
+
+            }
+
+          );
+
+        } catch (err) {
+
+          console.log(err);
+
+        }
+
+      }
+
+    );
+
+    // ======================
+    // READ MESSAGES
+    // ======================
+    socket.on(
+
+      "readMessages",
+
+      async (data) => {
+
+        try {
+
+          await PrivateMessage.updateMany(
+
+            {
+
+              from:
+                data.from,
+
+              to:
+                data.to,
+
+              read: false
+
+            },
+
+            {
+
+              read: true
+
+            }
+
+          );
+
+          io.emit(
+
+            "messagesRead"
 
           );
 
@@ -1185,9 +1014,6 @@ io.on(
 
     );
 
-    // ======================
-    // STOP TYPING
-    // ======================
     socket.on(
 
       "stopTyping",
@@ -1207,61 +1033,6 @@ io.on(
     );
 
     // ======================
-    // READ MESSAGES
-    // ======================
-    socket.on(
-
-      "readMessages",
-
-      async (data) => {
-
-        try {
-
-          await PrivateMessage.updateMany(
-
-            {
-
-              from:
-                data.from,
-
-              to:
-                data.to,
-
-              read: false
-
-            },
-
-            {
-
-              $set: {
-
-                read: true
-
-              }
-
-            }
-
-          );
-
-          io.emit(
-
-            "messagesRead",
-
-            data
-
-          );
-
-        } catch (err) {
-
-          console.log(err);
-
-        }
-
-      }
-
-    );
-
-    // ======================
     // DISCONNECT
     // ======================
     socket.on(
@@ -1269,49 +1040,6 @@ io.on(
       "disconnect",
 
       () => {
-
-        for (
-
-          const username
-          in onlineUsers
-
-        ) {
-
-          if (
-
-            onlineUsers[
-              username
-            ] === socket.id
-
-          ) {
-
-            delete onlineUsers[
-              username
-            ];
-
-          }
-
-        }
-
-        console.log(
-
-          "ONLINE USERS:",
-
-          Object.keys(
-            onlineUsers
-          )
-
-        );
-
-        io.emit(
-
-          "onlineUsers",
-
-          Object.keys(
-            onlineUsers
-          )
-
-        );
 
         console.log(
           "USER DISCONNECTED"
@@ -1329,7 +1057,7 @@ io.on(
 // PORT
 // ======================
 const PORT =
-  process.env.PORT || 3000;
+  process.env.PORT || 10000;
 
 // ======================
 // START SERVER
